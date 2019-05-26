@@ -165,15 +165,6 @@ class QOSpeedTest:
                     raw_count += 1
                     transfer_bytes = len(r.content)
                 else:
-                    timed_request(
-                        session.options,
-                        url_base + '/upload',
-                        params={'nocache': request_guid, 'guid': session_guid},
-                        headers={
-                            'Access-Control-Request-Method': 'POST',
-                            'Access-Control-Request-Headers': 'content-type',
-                        },
-                    )
                     random_payload = os.urandom(projected_bytes)
                     t_elapsed, _ = timed_request(
                         session.post,
