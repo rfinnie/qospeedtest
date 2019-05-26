@@ -142,7 +142,7 @@ class QOSpeedTest:
 
         with requests.Session() as session:
             session_guid = guid()
-            timed_request(session.get, url_base + '/hello', params={'nocache': guid(), 'guid': session_guid})
+            timed_request(session.get, url_base + 'hello', params={'nocache': guid(), 'guid': session_guid})
             projected_bytes = self.args.initial_download if mode == 'download' else self.args.initial_upload
             ewma = EWMA(self.args.ewma_weight)
             total_transferred = 0
@@ -151,14 +151,14 @@ class QOSpeedTest:
 
             while True:
                 if mode == 'download':
-                    logging.debug('Requesting payload of {}B from {}/download'.format(pretty_number(projected_bytes, divisor=1024), url_base))
+                    logging.debug('Requesting payload of {}B from {}download'.format(pretty_number(projected_bytes, divisor=1024), url_base))
                 else:
-                    logging.debug('Sending payload of {}B to {}/upload'.format(pretty_number(projected_bytes, divisor=1024), url_base))
+                    logging.debug('Sending payload of {}B to {}upload'.format(pretty_number(projected_bytes, divisor=1024), url_base))
                 request_guid = guid()
                 if mode == 'download':
                     t_elapsed, r = timed_request(
                         session.get,
-                        url_base + '/download',
+                        url_base + 'download',
                         params={'size': projected_bytes, 'nocache': request_guid, 'guid': session_guid}
                     )
                     t_elapsed -= r.elapsed
@@ -168,7 +168,7 @@ class QOSpeedTest:
                     random_payload = os.urandom(projected_bytes)
                     t_elapsed, _ = timed_request(
                         session.post,
-                        url_base + '/upload',
+                        url_base + 'upload',
                         params={'nocache': request_guid, 'guid': session_guid},
                         data=random_payload,
                     )
@@ -212,6 +212,9 @@ class QOSpeedTest:
             url_base = self.user_config['servers'][self.args.server]['url']
         else:
             url_base = self.args.server
+
+        if not url_base.endswith('/'):
+            url_base += '/'
 
         if not self.args.skip_download:
             self.do_test('download', url_base)
