@@ -9,7 +9,7 @@ assert(sys.version_info > (3, 4))
 
 setup(
     name='qospeedtest',
-    description='Quick OoklaServer Speed Test',
+    description='Quick-and-Dirty OoklaServer Speed Test',
     license='GPLv2+',
     author='Ryan Finnie',
     author_email='ryan@finnie.org',
@@ -17,7 +17,8 @@ setup(
     packages=['qospeedtest'],
     entry_points={
         'console_scripts': [
-            'qospeedtest = qospeedtest.cli:main',
+            'qospeedtest = qospeedtest.client:main',
+            'qospeedtest-server = qospeedtest.server:main',
         ],
     },
 )

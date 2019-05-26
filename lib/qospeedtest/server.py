@@ -1,25 +1,7 @@
-import os
+import logging
 import urllib.parse
 
-
-class RandomGenerator(object):
-    def __init__(self, byte_count):
-        self.byte_count = byte_count
-        self.left = self.byte_count
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self.next()
-
-    def next(self):
-        if self.left <= 0:
-            self.left = self.byte_count
-            raise StopIteration()
-        to_return = self.left if self.left < 1024 else 1024
-        self.left -= to_return
-        return os.urandom(to_return)
+from . import SemiRandomGenerator
 
 
 class ServerApplication():
@@ -32,20 +14,18 @@ class ServerApplication():
         if hasattr(self, 'method_{}'.format(self.environ['REQUEST_METHOD'])):
             return getattr(self, 'method_{}'.format(self.environ['REQUEST_METHOD']))()
         else:
-            body = 'Method Not Allowed\n'.encode('UTF-8')
-            self.start_response('405 Method Not Allowed', [
-                ('Content-Type', 'text/plain'),
-                ('Content-Length', str(len(body))),
-                ])
-            return [body]
+            return self.simple_response('Method Not Allowed', '405 Method Not Allowed')
 
-    def process_hello(self):
-        body = 'hello\n'.encode('UTF-8')
-        self.start_response('200 OK', [
+    def simple_response(self, message, code_str='200 OK'):
+        body = '{}\n'.format(message).encode('UTF-8')
+        self.start_response(code_str, [
             ('Content-Type', 'text/plain; charset=UTF-8'),
             ('Content-Length', str(len(body))),
             ])
         return [body]
+
+    def process_hello(self):
+        return self.simple_response('hello')
 
     def process_download(self):
         output_len = 0
@@ -60,7 +40,7 @@ class ServerApplication():
             ('Content-Type', 'application/octet-stream'),
             ('Content-Length', str(output_len)),
             ])
-        return RandomGenerator(output_len)
+        return SemiRandomGenerator(output_len)
 
     def process_upload(self):
         content_length = int(self.environ['CONTENT_LENGTH'])
@@ -69,23 +49,17 @@ class ServerApplication():
             to_read = left if left < 1024 else 1024
             left -= to_read
             self.environ['wsgi.input'].read(to_read)
-        body = 'size={}\n'.format(content_length).encode('UTF-8')
-        self.start_response('200 OK', [
-            ('Content-Type', 'text/plain; charset=UTF-8'),
-            ('Content-Length', str(len(body))),
-            ])
-        return [body]
+        return self.simple_response('size={}'.format(content_length))
 
     def method_POST(self):
+        try:
+            int(self.environ['CONTENT_LENGTH'])
+        except (KeyError, ValueError):
+            return self.simple_response('Bad Request', '400 Bad Request')
         if self.environ['PATH_INFO'] == '/upload':
             return self.process_upload()
         else:
-            body = 'Not Found\n'.encode('UTF-8')
-            self.start_response('404 Not Found', [
-                ('Content-Type', 'text/plain; charset=UTF-8'),
-                ('Content-Length', str(len(body))),
-                ])
-            return [body]
+            return self.simple_response('Not Found', '404 Not Found')
 
     def method_OPTIONS(self):
         headers = [
@@ -107,12 +81,7 @@ class ServerApplication():
         elif self.environ['PATH_INFO'] == '/download':
             return self.process_download()
         else:
-            body = 'Not Found\n'.encode('UTF-8')
-            self.start_response('404 Not Found', [
-                ('Content-Type', 'text/plain; charset=UTF-8'),
-                ('Content-Length', str(len(body))),
-                ])
-            return [body]
+            return self.simple_response('Not Found', '404 Not Found')
 
 
 def standalone_gunicorn():
@@ -143,8 +112,7 @@ def standalone_gunicorn():
 
 
 def standalone_wsgiref():
-    # wsgiref.simple_server is unsuitable for production, as it supports
-    # neither HTTP 1.1 nor 100 Continue.
+    logging.warning('wsgiref.simple_server is unsuitable for production, as it supports neither HTTP 1.1 nor 100 Continue.')
     from wsgiref.simple_server import make_server
 
     application = ServerApplication()
@@ -153,6 +121,10 @@ def standalone_wsgiref():
 
 
 def main():
+    logging.basicConfig(
+        format='%(asctime)s: %(name)s/%(levelname)s: %(message)s',
+        level=logging.INFO,
+    )
     try:
         standalone_gunicorn()
     except ImportError:

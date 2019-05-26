@@ -10,6 +10,7 @@ import uuid
 import requests
 import yaml
 
+from . import SemiRandomGenerator
 
 __version__ = '0.0.0'
 
@@ -106,11 +107,11 @@ class QOSpeedTest:
             help='Length of each request to try for',
         )
         parser.add_argument(
-            '--skip-download', action='store_true',
+            '--no-download', action='store_true',
             help='Skip download test',
         )
         parser.add_argument(
-            '--skip-upload', action='store_true',
+            '--no-upload', action='store_true',
             help='Skip upload test',
         )
         parser.add_argument(
@@ -120,6 +121,14 @@ class QOSpeedTest:
         parser.add_argument(
             '--initial-upload', type=int, default=10240,
             help='Number of bytes to send for the initial upload',
+        )
+        parser.add_argument(
+            '--minimum-requests', type=int, default=10,
+            help='Minimum number of requests to send per individual download/upload test',
+        )
+        parser.add_argument(
+            '--maximum-requests', type=int, default=50,
+            help='Maximum number of requests to send per individual download/upload test',
         )
 
         args = parser.parse_args(args=argv[1:])
@@ -146,14 +155,17 @@ class QOSpeedTest:
             projected_bytes = self.args.initial_download if mode == 'download' else self.args.initial_upload
             ewma = EWMA(self.args.ewma_weight)
             total_transferred = 0
-            raw_count = 1
             transfer_count = 0
 
             while True:
                 if mode == 'download':
-                    logging.debug('Requesting payload of {}B from {}download'.format(pretty_number(projected_bytes, divisor=1024), url_base))
+                    logging.debug('Requesting payload of {}B from {}download'.format(
+                        pretty_number(projected_bytes, divisor=1024), url_base),
+                    )
                 else:
-                    logging.debug('Sending payload of {}B to {}upload'.format(pretty_number(projected_bytes, divisor=1024), url_base))
+                    logging.debug('Sending payload of {}B to {}upload'.format(
+                        pretty_number(projected_bytes, divisor=1024), url_base),
+                    )
                 request_guid = guid()
                 if mode == 'download':
                     t_elapsed, r = timed_request(
@@ -162,17 +174,15 @@ class QOSpeedTest:
                         params={'size': projected_bytes, 'nocache': request_guid, 'guid': session_guid}
                     )
                     t_elapsed -= r.elapsed
-                    raw_count += 1
                     transfer_bytes = len(r.content)
                 else:
-                    random_payload = os.urandom(projected_bytes)
+                    random_payload = b''.join(SemiRandomGenerator(projected_bytes))
                     t_elapsed, _ = timed_request(
                         session.post,
                         url_base + 'upload',
                         params={'nocache': request_guid, 'guid': session_guid},
                         data=random_payload,
                     )
-                    raw_count += 2
                     transfer_bytes = projected_bytes
 
                 transfer_count += 1
@@ -180,18 +190,20 @@ class QOSpeedTest:
                 bytes_per_second = transfer_bytes / t_elapsed.total_seconds()
                 ewma.add_datapoint(bytes_per_second)
                 ewma_average = ewma.get_average()
-                if bytes_per_second < ewma_average:
+                if (bytes_per_second < ewma_average) and (transfer_count >= self.args.minimum_requests):
+                    break
+                if transfer_count >= self.args.maximum_requests:
                     break
                 projected_bytes = int(ewma_average * self.args.target_seconds)
 
             bps = ewma.get_average() * 8.0
             if mode == 'download':
-                logging.info('Download speed: {}bps, {}B received in {} downloads ({} raw requests)'.format(
-                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count, raw_count
+                logging.info('Download speed: {}bps, {}B received in {} requests'.format(
+                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count,
                 ))
             else:
-                logging.info('Upload speed: {}bps, {}B sent in {} uploads ({} raw requests)'.format(
-                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count, raw_count
+                logging.info('Upload speed: {}bps, {}B sent in {} requests'.format(
+                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count,
                 ))
 
     def main(self):
@@ -216,11 +228,15 @@ class QOSpeedTest:
         if not url_base.endswith('/'):
             url_base += '/'
 
-        if not self.args.skip_download:
+        if not self.args.no_download:
             self.do_test('download', url_base)
-        if not self.args.skip_upload:
+        if not self.args.no_upload:
             self.do_test('upload', url_base)
 
 
 def main():
     return QOSpeedTest().main()
+
+
+if __name__ == '__main__':
+    sys.exit(main())

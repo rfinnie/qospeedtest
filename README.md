@@ -11,7 +11,7 @@ qospeedtest emulates the communication order done by speedtest.net, but uses a d
 ```
 $ qospeedtest http://example.com:8080/
 2019-05-25 14:24:59,742: root/INFO: Testing download speed from http://example.com:8080/
-2019-05-25 14:25:29,730: root/INFO: Download speed: 109.07 Mbps, 383.08 MiB received in 37 downloads (38 raw requests)
+2019-05-25 14:25:29,730: root/INFO: Download speed: 109.07 Mbps, 383.08 MiB received in 37 requests
 2019-05-25 14:25:29,732: root/INFO: Testing upload speed to http://example.com:8080/
-2019-05-25 14:26:15,136: root/INFO: Upload speed: 11.27 Mbps, 57.99 MiB sent in 49 uploads (99 raw requests)
+2019-05-25 14:26:15,136: root/INFO: Upload speed: 11.27 Mbps, 57.99 MiB sent in 49 requests
 ```

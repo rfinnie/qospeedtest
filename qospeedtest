@@ -3,6 +3,5 @@
 import sys
 
 sys.path.append('lib')
-import qospeedtest.cli
-sys.exit(qospeedtest.cli.main())
-
+import qospeedtest.client
+sys.exit(qospeedtest.client.main())
