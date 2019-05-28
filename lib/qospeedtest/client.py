@@ -4,6 +4,7 @@ import argparse
 import datetime
 import logging
 import os
+import statistics
 import sys
 import uuid
 
@@ -47,13 +48,14 @@ class EWMA:
     def __init__(self, weight=8.0):
         self._weight = weight
 
-    def add_datapoint(self, number):
+    def add(self, number):
         if self._ewma_state == 0:
             self._ewma_state = number * self._weight
         else:
             self._ewma_state += (number - (self._ewma_state / self._weight))
 
-    def get_average(self):
+    @property
+    def average(self):
         return self._ewma_state / self._weight
 
 
@@ -123,12 +125,16 @@ class QOSpeedTest:
             help='Number of bytes to send for the initial upload',
         )
         parser.add_argument(
-            '--minimum-requests', type=int, default=10,
-            help='Minimum number of requests to send per individual download/upload test',
+            '--initial-samples', type=int, default=3,
+            help='Number of ramp-up samples to not count against final calculations',
         )
         parser.add_argument(
-            '--maximum-requests', type=int, default=50,
-            help='Maximum number of requests to send per individual download/upload test',
+            '--minimum-samples', type=int, default=10,
+            help='Minimum number of samples to gather per individual download/upload test',
+        )
+        parser.add_argument(
+            '--maximum-samples', type=int, default=50,
+            help='Maximum number of samples to gather per individual download/upload test',
         )
 
         args = parser.parse_args(args=argv[1:])
@@ -149,13 +155,16 @@ class QOSpeedTest:
         else:
             logging.info('Testing upload speed to {}'.format(url_base))
 
+        target_td = datetime.timedelta(seconds=self.args.target_seconds)
         with requests.Session() as session:
             session_guid = guid()
             timed_request(session.get, url_base + 'hello', params={'nocache': guid(), 'guid': session_guid})
             projected_bytes = self.args.initial_download if mode == 'download' else self.args.initial_upload
-            ewma = EWMA(self.args.ewma_weight)
-            total_transferred = 0
+            ewma_bps = EWMA(self.args.ewma_weight)
+            ewma_time = EWMA(self.args.ewma_weight)
             transfer_count = 0
+            transfer_bytes_sum = 0
+            bps_sample_list = []
 
             while True:
                 if mode == 'download':
@@ -168,43 +177,71 @@ class QOSpeedTest:
                     )
                 request_guid = guid()
                 if mode == 'download':
-                    t_elapsed, r = timed_request(
+                    t_request, r = timed_request(
                         session.get,
                         url_base + 'download',
-                        params={'size': projected_bytes, 'nocache': request_guid, 'guid': session_guid}
+                        params={'size': projected_bytes, 'nocache': request_guid, 'guid': session_guid},
+                        stream=True,
                     )
-                    t_elapsed -= r.elapsed
-                    transfer_bytes = len(r.content)
+                    t_start = datetime.datetime.now()
+                    transfer_bytes = 0
+                    for i in r.iter_content(None):
+                        transfer_bytes += len(i)
+                    t_end = datetime.datetime.now()
+                    t_transfer = t_end - t_start
                 else:
                     random_payload = b''.join(SemiRandomGenerator(projected_bytes))
-                    t_elapsed, _ = timed_request(
+                    t_request, r = timed_request(
                         session.post,
                         url_base + 'upload',
                         params={'nocache': request_guid, 'guid': session_guid},
                         data=random_payload,
                     )
+                    t_transfer = r.elapsed
                     transfer_bytes = projected_bytes
 
+                bps = transfer_bytes / t_transfer.total_seconds() * 8.0
+                transfer_bytes_sum += transfer_bytes
                 transfer_count += 1
-                total_transferred += transfer_bytes
-                bytes_per_second = transfer_bytes / t_elapsed.total_seconds()
-                ewma.add_datapoint(bytes_per_second)
-                ewma_average = ewma.get_average()
-                if (bytes_per_second < ewma_average) and (transfer_count >= self.args.minimum_requests):
-                    break
-                if transfer_count >= self.args.maximum_requests:
-                    break
-                projected_bytes = int(ewma_average * self.args.target_seconds)
+                logging.debug('Total request send: {}, requests elapsed: {}, payload: {}B in {} ({}b/s)'.format(
+                    t_request, r.elapsed, pretty_number(transfer_bytes, divisor=1024), t_transfer,
+                    pretty_number(bps),
+                ))
 
-            bps = ewma.get_average() * 8.0
+                # Do not consider the first results
+                if(transfer_count <= self.args.initial_samples):
+                    projected_bytes = int(bps * self.args.target_seconds * 1.05 / 8.0)
+                    continue
+
+                ewma_bps.add(bps)
+                ewma_time.add(t_transfer)
+                bps_sample_list.append(bps)
+                logging.debug('EWMA bps: {}b/s, time: {}'.format(
+                    pretty_number(ewma_bps.average), ewma_time.average,
+                ))
+
+                if len(bps_sample_list) >= self.args.maximum_samples:
+                    logging.debug('Reached maximum samples')
+                    break
+                elif len(bps_sample_list) >= self.args.minimum_samples:
+                    if ewma_time.average >= (target_td * 0.95):
+                        break
+
+                projected_bytes = int(ewma_bps.average * self.args.target_seconds * 1.05 / 8.0)
+
             if mode == 'download':
-                logging.info('Download speed: {}bps, {}B received in {} requests'.format(
-                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count,
-                ))
+                wording = ('Download', 'received')
             else:
-                logging.info('Upload speed: {}bps, {}B sent in {} requests'.format(
-                    pretty_number(bps), pretty_number(total_transferred, divisor=1024), transfer_count,
-                ))
+                wording = ('Upload', 'sent')
+            logging.info('{} speed: {}b/s, {}B {} in {} requests'.format(
+                wording[0], pretty_number(ewma_bps.average), pretty_number(transfer_bytes_sum, divisor=1024),
+                wording[1], transfer_count,
+            ))
+            stdev = statistics.stdev(bps_sample_list)
+            logging.info('Standard deviation: {}b/s ({:.1%}), lowest/highest single request: {}b/s, {}b/s'.format(
+                pretty_number(stdev), stdev / ewma_bps.average,
+                pretty_number(min(bps_sample_list)), pretty_number(max(bps_sample_list)),
+            ))
 
     def main(self):
         self.args = self.parse_args()
