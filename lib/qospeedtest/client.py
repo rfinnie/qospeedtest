@@ -6,57 +6,13 @@ import logging
 import os
 import statistics
 import sys
-import uuid
 
 import requests
 import yaml
 
-from . import SemiRandomGenerator
-
-__version__ = '0.0.0'
-
-
-def guid():
-    return str(uuid.uuid4())
-
-
-def pretty_number(n, divisor=1000, rollover=1.0, limit=0, format='{number:0.02f} {prefix}'):
-    prefixes = [
-        ('k', 'Ki'), ('M', 'Mi'), ('G', 'Gi'), ('T', 'Ti'),
-        ('P', 'Pi'), ('E', 'Ei'), ('Z', 'Zi'), ('Y', 'Yi'),
-    ]
-    if limit == 0:
-        limit = len(prefixes)
-
-    count = 0
-    p = ''
-    for prefix in prefixes:
-        if n < (divisor * rollover):
-            break
-        if count >= limit:
-            break
-        count += 1
-        n = n / float(divisor)
-        p = prefix[1] if divisor == 1024 else prefix[0]
-    return format.format(number=n, prefix=p)
-
-
-class EWMA:
-    _weight = 8.0
-    _ewma_state = 0
-
-    def __init__(self, weight=8.0):
-        self._weight = weight
-
-    def add(self, number):
-        if self._ewma_state == 0:
-            self._ewma_state = number * self._weight
-        else:
-            self._ewma_state += (number - (self._ewma_state / self._weight))
-
-    @property
-    def average(self):
-        return self._ewma_state / self._weight
+from . import __version__
+from . import EWMA, SemiRandomGenerator
+from . import guid, si_number
 
 
 def timed_request(method, *args, **kwargs):
@@ -168,13 +124,15 @@ class QOSpeedTest:
 
             while True:
                 if mode == 'download':
-                    logging.debug('Requesting payload of {}B from {}download'.format(
-                        pretty_number(projected_bytes, divisor=1024), url_base),
-                    )
+                    logging.debug('Requesting payload of {payload:0.02f} {payload.prefix}B from {url}download'.format(
+                        payload=si_number(projected_bytes, binary=True),
+                        url=url_base,
+                    ))
                 else:
-                    logging.debug('Sending payload of {}B to {}upload'.format(
-                        pretty_number(projected_bytes, divisor=1024), url_base),
-                    )
+                    logging.debug('Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload'.format(
+                        payload=si_number(projected_bytes, binary=True),
+                        url=url_base,
+                    ))
                 request_guid = guid()
                 if mode == 'download':
                     t_request, r = timed_request(
@@ -203,10 +161,17 @@ class QOSpeedTest:
                 bps = transfer_bytes / t_transfer.total_seconds() * 8.0
                 transfer_bytes_sum += transfer_bytes
                 transfer_count += 1
-                logging.debug('Total request send: {}, requests elapsed: {}, payload: {}B in {} ({}b/s)'.format(
-                    t_request, r.elapsed, pretty_number(transfer_bytes, divisor=1024), t_transfer,
-                    pretty_number(bps),
-                ))
+                logging.debug(
+                    'Total request send: {send}, requests elapsed: {elapsed}, payload: '
+                    '{payload:0.02f} {payload.prefix}B in {transfer} '
+                    '({bps:0.02f} {bps.prefix}b/s)'.format(
+                        send=t_request,
+                        elapsed=r.elapsed,
+                        payload=si_number(transfer_bytes, binary=True),
+                        transfer=t_transfer,
+                        bps=si_number(bps),
+                    )
+                )
 
                 # Do not consider the first results
                 if(transfer_count <= self.args.initial_samples):
@@ -216,8 +181,9 @@ class QOSpeedTest:
                 ewma_bps.add(bps)
                 ewma_time.add(t_transfer)
                 bps_sample_list.append(bps)
-                logging.debug('EWMA bps: {}b/s, time: {}'.format(
-                    pretty_number(ewma_bps.average), ewma_time.average,
+                logging.debug('EWMA bps: {bps:0.02f} {bps.prefix}b/s, time: {time}'.format(
+                    bps=si_number(ewma_bps.average),
+                    time=ewma_time.average,
                 ))
 
                 if len(bps_sample_list) >= self.args.maximum_samples:
@@ -233,15 +199,26 @@ class QOSpeedTest:
                 wording = ('Download', 'received')
             else:
                 wording = ('Upload', 'sent')
-            logging.info('{} speed: {}b/s, {}B {} in {} requests'.format(
-                wording[0], pretty_number(ewma_bps.average), pretty_number(transfer_bytes_sum, divisor=1024),
-                wording[1], transfer_count,
-            ))
+            logging.info(
+                '{type} speed: {bps:0.02f} {bps.prefix}b/s, {transfer:0.02f} {transfer.prefix}B {verb} in '
+                '{count} requests'.format(
+                    type=wording[0],
+                    bps=si_number(ewma_bps.average),
+                    transfer=si_number(transfer_bytes_sum, binary=True),
+                    verb=wording[1],
+                    count=transfer_count,
+                )
+            )
             stdev = statistics.stdev(bps_sample_list)
-            logging.info('Standard deviation: {}b/s ({:.1%}), lowest/highest single request: {}b/s, {}b/s'.format(
-                pretty_number(stdev), stdev / ewma_bps.average,
-                pretty_number(min(bps_sample_list)), pretty_number(max(bps_sample_list)),
-            ))
+            logging.info(
+                'Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single '
+                'request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s'.format(
+                    stdev=si_number(stdev),
+                    stdev_ratio=(stdev / ewma_bps.average),
+                    min=si_number(min(bps_sample_list)),
+                    max=si_number(max(bps_sample_list)),
+                )
+            )
 
     def main(self):
         self.args = self.parse_args()
