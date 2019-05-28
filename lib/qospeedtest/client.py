@@ -35,10 +35,11 @@ class QOSpeedTest:
         if argv is None:
             argv = sys.argv
 
+        program = os.path.basename(sys.argv[0])
         parser = argparse.ArgumentParser(
-            description='vanityhash ({})'.format(__version__),
+            description='{} ({})'.format(program, __version__),
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            prog=os.path.basename(argv[0]),
+            prog=program,
         )
 
         parser.add_argument(
