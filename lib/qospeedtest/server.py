@@ -1,6 +1,7 @@
 import logging
 import urllib.parse
 
+from . import __version__
 from . import SemiRandomGenerator
 
 
@@ -25,7 +26,7 @@ class ServerApplication():
         return [body]
 
     def process_hello(self):
-        return self.simple_response('hello')
+        return self.simple_response('hello qospeedtest-server {}'.format(__version__))
 
     def process_download(self):
         output_len = 0
