@@ -155,8 +155,13 @@ class QOSpeedTest:
                         url_base + 'upload',
                         params={'nocache': request_guid, 'guid': session_guid},
                         data=random_payload,
+                        stream=True,
                     )
                     t_transfer = r.elapsed
+                    upload_results = r.text.strip().split('=', 1)
+                    assert upload_results[0] == 'size'
+                    reported_size = int(upload_results[1])
+                    assert reported_size == projected_bytes
                     transfer_bytes = projected_bytes
 
                 bps = transfer_bytes / t_transfer.total_seconds() * 8.0
