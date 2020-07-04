@@ -124,18 +124,12 @@ class QOSpeedTest:
             bps_sample_list = []
 
             while True:
+                request_guid = guid()
                 if mode == 'download':
                     logging.debug('Requesting payload of {payload:0.02f} {payload.prefix}B from {url}download'.format(
                         payload=si_number(projected_bytes, binary=True),
                         url=url_base,
                     ))
-                else:
-                    logging.debug('Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload'.format(
-                        payload=si_number(projected_bytes, binary=True),
-                        url=url_base,
-                    ))
-                request_guid = guid()
-                if mode == 'download':
                     t_request, r = timed_request(
                         session.get,
                         url_base + 'download',
@@ -149,6 +143,10 @@ class QOSpeedTest:
                     t_end = datetime.datetime.now()
                     t_transfer = t_end - t_start
                 else:
+                    logging.debug('Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload'.format(
+                        payload=si_number(projected_bytes, binary=True),
+                        url=url_base,
+                    ))
                     random_payload = b''.join(SemiRandomGenerator(projected_bytes))
                     t_request, r = timed_request(
                         session.post,
@@ -255,7 +253,10 @@ class QOSpeedTest:
 
 
 def main():
-    return QOSpeedTest().main()
+    try:
+        return QOSpeedTest().main()
+    except KeyboardInterrupt:
+        return 1
 
 
 if __name__ == '__main__':
