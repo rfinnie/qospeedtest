@@ -48,9 +48,14 @@ class QOSpeedTest:
             help='report the program version',
         )
 
-        parser.add_argument(
-            'server', type=str,
+        action_group = parser.add_mutually_exclusive_group(required=True)
+        action_group.add_argument(
+            'server', type=str, nargs='?',
             help='Speed test server profile or URL',
+        )
+        action_group.add_argument(
+            '--list', action='store_true',
+            help='List saved servers.',
         )
 
         parser.add_argument(
@@ -238,6 +243,10 @@ class QOSpeedTest:
 
         self.load_user_config()
 
+        if self.args.list:
+            for server in self.user_config['servers']:
+                logging.info('{}\t{}'.format(server, self.user_config['servers'][server]['url']))
+            return
         if self.args.server in self.user_config['servers']:
             url_base = self.user_config['servers'][self.args.server]['url']
         else:
