@@ -37,91 +37,110 @@ class QOSpeedTest:
 
         program = os.path.basename(sys.argv[0])
         parser = argparse.ArgumentParser(
-            description='{} ({})'.format(program, __version__),
+            description="{} ({})".format(program, __version__),
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
             prog=program,
         )
 
         parser.add_argument(
-            '--version', '-V', action='version',
+            "--version",
+            "-V",
+            action="version",
             version=__version__,
-            help='report the program version',
+            help="report the program version",
         )
 
         action_group = parser.add_mutually_exclusive_group(required=True)
         action_group.add_argument(
-            'server', type=str, nargs='?',
-            help='Speed test server profile or URL',
+            "server", type=str, nargs="?", help="Speed test server profile or URL"
         )
         action_group.add_argument(
-            '--list', action='store_true',
-            help='List saved servers.',
+            "--list", action="store_true", help="List saved servers."
         )
 
         parser.add_argument(
-            '--debug', action='store_true',
-            help='Print extra debugging information.',
+            "--debug", action="store_true", help="Print extra debugging information."
         )
         parser.add_argument(
-            '--ewma-weight', type=float, default=8.0,
-            help='EWMA weight for speed confidence',
+            "--ewma-weight",
+            type=float,
+            default=8.0,
+            help="EWMA weight for speed confidence",
         )
         parser.add_argument(
-            '--target-seconds', type=float, default=1.0,
-            help='Length of each request to try for',
+            "--target-seconds",
+            type=float,
+            default=1.0,
+            help="Length of each request to try for",
         )
         parser.add_argument(
-            '--no-download', action='store_true',
-            help='Skip download test',
+            "--no-download", action="store_true", help="Skip download test"
+        )
+        parser.add_argument("--no-upload", action="store_true", help="Skip upload test")
+        parser.add_argument(
+            "--initial-download",
+            type=int,
+            default=102400,
+            help="Number of bytes to request for the initial download",
         )
         parser.add_argument(
-            '--no-upload', action='store_true',
-            help='Skip upload test',
+            "--initial-upload",
+            type=int,
+            default=10240,
+            help="Number of bytes to send for the initial upload",
         )
         parser.add_argument(
-            '--initial-download', type=int, default=102400,
-            help='Number of bytes to request for the initial download',
+            "--initial-samples",
+            type=int,
+            default=3,
+            help="Number of ramp-up samples to not count against final calculations",
         )
         parser.add_argument(
-            '--initial-upload', type=int, default=10240,
-            help='Number of bytes to send for the initial upload',
+            "--minimum-samples",
+            type=int,
+            default=10,
+            help="Minimum number of samples to gather per individual download/upload test",
         )
         parser.add_argument(
-            '--initial-samples', type=int, default=3,
-            help='Number of ramp-up samples to not count against final calculations',
-        )
-        parser.add_argument(
-            '--minimum-samples', type=int, default=10,
-            help='Minimum number of samples to gather per individual download/upload test',
-        )
-        parser.add_argument(
-            '--maximum-samples', type=int, default=50,
-            help='Maximum number of samples to gather per individual download/upload test',
+            "--maximum-samples",
+            type=int,
+            default=50,
+            help="Maximum number of samples to gather per individual download/upload test",
         )
 
         args = parser.parse_args(args=argv[1:])
         return args
 
     def load_user_config(self):
-        yaml_file = os.path.join(os.path.expanduser('~'), '.config', 'qospeedtest', 'config.yaml')
+        yaml_file = os.path.join(
+            os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"
+        )
         if os.path.exists(yaml_file):
             with open(yaml_file) as f:
                 self.user_config = yaml.safe_load(f)
 
-        if 'servers' not in self.user_config:
-            self.user_config['servers'] = {}
+        if "servers" not in self.user_config:
+            self.user_config["servers"] = {}
 
     def do_test(self, mode, url_base):
-        if mode == 'download':
-            logging.info('Testing download speed from {}'.format(url_base))
+        if mode == "download":
+            logging.info("Testing download speed from {}".format(url_base))
         else:
-            logging.info('Testing upload speed to {}'.format(url_base))
+            logging.info("Testing upload speed to {}".format(url_base))
 
         target_td = datetime.timedelta(seconds=self.args.target_seconds)
         with requests.Session() as session:
             session_guid = guid()
-            timed_request(session.get, url_base + 'hello', params={'nocache': guid(), 'guid': session_guid})
-            projected_bytes = self.args.initial_download if mode == 'download' else self.args.initial_upload
+            timed_request(
+                session.get,
+                url_base + "hello",
+                params={"nocache": guid(), "guid": session_guid},
+            )
+            projected_bytes = (
+                self.args.initial_download
+                if mode == "download"
+                else self.args.initial_upload
+            )
             ewma_bps = EWMA(self.args.ewma_weight)
             ewma_time = EWMA(self.args.ewma_weight)
             transfer_count = 0
@@ -130,15 +149,21 @@ class QOSpeedTest:
 
             while True:
                 request_guid = guid()
-                if mode == 'download':
-                    logging.debug('Requesting payload of {payload:0.02f} {payload.prefix}B from {url}download'.format(
-                        payload=si_number(projected_bytes, binary=True),
-                        url=url_base,
-                    ))
+                if mode == "download":
+                    logging.debug(
+                        "Requesting payload of {payload:0.02f} {payload.prefix}B from {url}download".format(
+                            payload=si_number(projected_bytes, binary=True),
+                            url=url_base,
+                        )
+                    )
                     t_request, r = timed_request(
                         session.get,
-                        url_base + 'download',
-                        params={'size': projected_bytes, 'nocache': request_guid, 'guid': session_guid},
+                        url_base + "download",
+                        params={
+                            "size": projected_bytes,
+                            "nocache": request_guid,
+                            "guid": session_guid,
+                        },
                         stream=True,
                     )
                     t_start = datetime.datetime.now()
@@ -148,21 +173,23 @@ class QOSpeedTest:
                     t_end = datetime.datetime.now()
                     t_transfer = t_end - t_start
                 else:
-                    logging.debug('Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload'.format(
-                        payload=si_number(projected_bytes, binary=True),
-                        url=url_base,
-                    ))
-                    random_payload = b''.join(SemiRandomGenerator(projected_bytes))
+                    logging.debug(
+                        "Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload".format(
+                            payload=si_number(projected_bytes, binary=True),
+                            url=url_base,
+                        )
+                    )
+                    random_payload = b"".join(SemiRandomGenerator(projected_bytes))
                     t_request, r = timed_request(
                         session.post,
-                        url_base + 'upload',
-                        params={'nocache': request_guid, 'guid': session_guid},
+                        url_base + "upload",
+                        params={"nocache": request_guid, "guid": session_guid},
                         data=random_payload,
                         stream=True,
                     )
                     t_transfer = r.elapsed
-                    upload_results = r.text.strip().split('=', 1)
-                    assert upload_results[0] == 'size'
+                    upload_results = r.text.strip().split("=", 1)
+                    assert upload_results[0] == "size"
                     reported_size = int(upload_results[1])
                     assert reported_size == projected_bytes
                     transfer_bytes = projected_bytes
@@ -171,9 +198,9 @@ class QOSpeedTest:
                 transfer_bytes_sum += transfer_bytes
                 transfer_count += 1
                 logging.debug(
-                    'Total request send: {send}, requests elapsed: {elapsed}, payload: '
-                    '{payload:0.02f} {payload.prefix}B in {transfer} '
-                    '({bps:0.02f} {bps.prefix}b/s)'.format(
+                    "Total request send: {send}, requests elapsed: {elapsed}, payload: "
+                    "{payload:0.02f} {payload.prefix}B in {transfer} "
+                    "({bps:0.02f} {bps.prefix}b/s)".format(
                         send=t_request,
                         elapsed=r.elapsed,
                         payload=si_number(transfer_bytes, binary=True),
@@ -183,34 +210,37 @@ class QOSpeedTest:
                 )
 
                 # Do not consider the first results
-                if(transfer_count <= self.args.initial_samples):
+                if transfer_count <= self.args.initial_samples:
                     projected_bytes = int(bps * self.args.target_seconds * 1.05 / 8.0)
                     continue
 
                 ewma_bps.add(bps)
                 ewma_time.add(t_transfer)
                 bps_sample_list.append(bps)
-                logging.debug('EWMA bps: {bps:0.02f} {bps.prefix}b/s, time: {time}'.format(
-                    bps=si_number(ewma_bps.average),
-                    time=ewma_time.average,
-                ))
+                logging.debug(
+                    "EWMA bps: {bps:0.02f} {bps.prefix}b/s, time: {time}".format(
+                        bps=si_number(ewma_bps.average), time=ewma_time.average
+                    )
+                )
 
                 if len(bps_sample_list) >= self.args.maximum_samples:
-                    logging.debug('Reached maximum samples')
+                    logging.debug("Reached maximum samples")
                     break
                 elif len(bps_sample_list) >= self.args.minimum_samples:
                     if ewma_time.average >= (target_td * 0.95):
                         break
 
-                projected_bytes = int(ewma_bps.average * self.args.target_seconds * 1.05 / 8.0)
+                projected_bytes = int(
+                    ewma_bps.average * self.args.target_seconds * 1.05 / 8.0
+                )
 
-            if mode == 'download':
-                wording = ('Download', 'received')
+            if mode == "download":
+                wording = ("Download", "received")
             else:
-                wording = ('Upload', 'sent')
+                wording = ("Upload", "sent")
             logging.info(
-                '{type} speed: {bps:0.02f} {bps.prefix}b/s, {transfer:0.02f} {transfer.prefix}B {verb} in '
-                '{count} requests'.format(
+                "{type} speed: {bps:0.02f} {bps.prefix}b/s, {transfer:0.02f} {transfer.prefix}B {verb} in "
+                "{count} requests".format(
                     type=wording[0],
                     bps=si_number(ewma_bps.average),
                     transfer=si_number(transfer_bytes_sum, binary=True),
@@ -220,8 +250,8 @@ class QOSpeedTest:
             )
             stdev = statistics.stdev(bps_sample_list)
             logging.info(
-                'Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single '
-                'request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s'.format(
+                "Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single "
+                "request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s".format(
                     stdev=si_number(stdev),
                     stdev_ratio=(stdev / ewma_bps.average),
                     min=si_number(min(bps_sample_list)),
@@ -237,28 +267,30 @@ class QOSpeedTest:
         else:
             logging_level = logging.INFO
         logging.basicConfig(
-            format='%(asctime)s: %(name)s/%(levelname)s: %(message)s',
-            level=logging_level
+            format="%(asctime)s: %(name)s/%(levelname)s: %(message)s",
+            level=logging_level,
         )
 
         self.load_user_config()
 
         if self.args.list:
-            for server in self.user_config['servers']:
-                logging.info('{}\t{}'.format(server, self.user_config['servers'][server]['url']))
+            for server in self.user_config["servers"]:
+                logging.info(
+                    "{}\t{}".format(server, self.user_config["servers"][server]["url"])
+                )
             return
-        if self.args.server in self.user_config['servers']:
-            url_base = self.user_config['servers'][self.args.server]['url']
+        if self.args.server in self.user_config["servers"]:
+            url_base = self.user_config["servers"][self.args.server]["url"]
         else:
             url_base = self.args.server
 
-        if not url_base.endswith('/'):
-            url_base += '/'
+        if not url_base.endswith("/"):
+            url_base += "/"
 
         if not self.args.no_download:
-            self.do_test('download', url_base)
+            self.do_test("download", url_base)
         if not self.args.no_upload:
-            self.do_test('upload', url_base)
+            self.do_test("upload", url_base)
 
 
 def main():
@@ -268,5 +300,5 @@ def main():
         return 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
