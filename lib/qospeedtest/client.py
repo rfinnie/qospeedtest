@@ -4,8 +4,11 @@ import argparse
 import datetime
 import logging
 import os
+import pathlib
 import statistics
 import sys
+import time
+import xml.etree.ElementTree as ET
 
 import requests
 import yaml
@@ -50,12 +53,15 @@ class QOSpeedTest:
             help="report the program version",
         )
 
-        action_group = parser.add_mutually_exclusive_group(required=True)
+        action_group = parser.add_mutually_exclusive_group(required=False)
         action_group.add_argument(
             "server", type=str, nargs="?", help="Speed test server profile or URL"
         )
         action_group.add_argument(
             "--list", action="store_true", help="List saved servers."
+        )
+        action_group.add_argument(
+            "--nearby", action="store_true", help="List nearby speedtest.net servers"
         )
 
         parser.add_argument(
@@ -112,15 +118,60 @@ class QOSpeedTest:
         return args
 
     def load_user_config(self):
-        yaml_file = os.path.join(
-            os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"
+        yaml_file = pathlib.Path(
+            os.path.join(
+                os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"
+            )
         )
-        if os.path.exists(yaml_file):
-            with open(yaml_file) as f:
+        if yaml_file.exists():
+            with yaml_file.open() as f:
                 self.user_config = yaml.safe_load(f)
 
         if "servers" not in self.user_config:
             self.user_config["servers"] = {}
+
+        if ("default_server" not in self.user_config) or (
+            self.user_config["default_server"] not in self.user_config["servers"]
+        ):
+            self.user_config["default_server"] = None
+
+    def get_speedtest_net_servers(self):
+        xml_cache_file = pathlib.Path(
+            os.path.join(
+                os.path.expanduser("~"),
+                ".cache",
+                "qospeedtest",
+                "speedtest-servers-static.xml",
+            )
+        )
+        if xml_cache_file.exists() and (
+            xml_cache_file.stat().st_mtime >= (time.time() - (60 * 60 * 24))
+        ):
+            logging.debug("Using cached speedtest-servers-static.xml")
+            root = ET.fromstring(xml_cache_file.read_text())
+        else:
+            res = requests.get("https://www.speedtest.net/speedtest-servers-static.php")
+            res.raise_for_status()
+            root = ET.fromstring(res.text)
+            xml_cache_file.parent.mkdir(parents=True, exist_ok=True)
+            xml_cache_file.write_text(res.text)
+
+        return root.iter("server")
+
+    def print_nearby_remote(self):
+        printed = 0
+        for server in self.get_speedtest_net_servers():
+            logging.info(
+                "http://{}/\t{}, {}\t{}".format(
+                    server.attrib["host"],
+                    server.attrib["name"],
+                    server.attrib["cc"],
+                    server.attrib["sponsor"],
+                )
+            )
+            printed += 1
+            if printed >= 10:
+                break
 
     def do_test(self, mode, url_base):
         if mode == "download":
@@ -279,10 +330,31 @@ class QOSpeedTest:
                     "{}\t{}".format(server, self.user_config["servers"][server]["url"])
                 )
             return
-        if self.args.server in self.user_config["servers"]:
-            url_base = self.user_config["servers"][self.args.server]["url"]
+        elif self.args.nearby:
+            return self.print_nearby_remote()
+        elif self.args.server:
+            if self.args.server in self.user_config["servers"]:
+                url_base = self.user_config["servers"][self.args.server]["url"]
+            else:
+                url_base = self.args.server
+        elif self.user_config["default_server"]:
+            url_base = self.user_config["servers"][self.user_config["default_server"]][
+                "url"
+            ]
+            logging.info(
+                "Using default server '{}' from user configuration".format(
+                    self.user_config["default_server"]
+                )
+            )
         else:
-            url_base = self.args.server
+            speedtest_net_servers = self.get_speedtest_net_servers()
+            server = next(speedtest_net_servers)
+            url_base = "http://{}/".format(server.attrib["host"])
+            logging.info(
+                "Using closest speedtest.net server: {} in {}, {}".format(
+                    server.attrib["sponsor"], server.attrib["name"], server.attrib["cc"]
+                )
+            )
 
         if not url_base.endswith("/"):
             url_base += "/"
