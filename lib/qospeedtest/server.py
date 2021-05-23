@@ -9,6 +9,7 @@ class ServerApplication:
     def __call__(self, environ, start_response):
         self.environ = environ
         self.start_response = start_response
+        self.path = self.environ["PATH_INFO"].lstrip("/")
         self.query_params = {}
         if "QUERY_STRING" in self.environ:
             self.query_params = urllib.parse.parse_qs(self.environ["QUERY_STRING"])
@@ -63,7 +64,7 @@ class ServerApplication:
             int(self.environ["CONTENT_LENGTH"])
         except (KeyError, ValueError):
             return self.simple_response("Bad Request", "400 Bad Request")
-        if self.environ["PATH_INFO"] == "/upload":
+        if self.path == "upload":
             return self.process_upload()
         else:
             return self.simple_response("Not Found", "404 Not Found")
@@ -88,9 +89,9 @@ class ServerApplication:
         return []
 
     def method_GET(self):
-        if self.environ["PATH_INFO"] == "/hello":
+        if self.path == "hello":
             return self.process_hello()
-        elif self.environ["PATH_INFO"] == "/download":
+        elif self.path == "download":
             return self.process_download()
         else:
             return self.simple_response("Not Found", "404 Not Found")
