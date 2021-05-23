@@ -25,7 +25,7 @@ class EWMA:
 
 class SemiRandomGenerator(object):
     # Randomized at module load time; we just need something semi-random
-    random_1k = os.urandom(1024)
+    random_pool = os.urandom(1021)
 
     def __init__(self, byte_count):
         self.byte_count = byte_count
@@ -41,12 +41,12 @@ class SemiRandomGenerator(object):
         if self.left <= 0:
             self.left = self.byte_count
             raise StopIteration()
-        to_return = self.left if self.left < 1024 else 1024
+        to_return = self.left if self.left < 1021 else 1021
         self.left -= to_return
-        if to_return < 1024:
-            return self.random_1k[:to_return]
+        if to_return < 1021:
+            return self.random_pool[:to_return]
         else:
-            return self.random_1k
+            return self.random_pool
 
 
 def guid():
