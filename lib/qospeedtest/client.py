@@ -315,10 +315,12 @@ class QOSpeedTest:
 
         if self.args.debug:
             logging_level = logging.DEBUG
+            logging_format = "%(asctime)s: %(name)s/%(levelname)s: %(message)s"
         else:
             logging_level = logging.INFO
+            logging_format = "%(message)s"
         logging.basicConfig(
-            format="%(asctime)s: %(name)s/%(levelname)s: %(message)s",
+            format=logging_format,
             level=logging_level,
         )
 
