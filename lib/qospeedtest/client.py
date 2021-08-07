@@ -322,7 +322,9 @@ class QOSpeedTest:
 
         self.load_user_config()
         self.http_session = requests.Session()
-        self.http_session.headers["User-Agent"] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
+        self.http_session.headers[
+            "User-Agent"
+        ] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
 
         if self.args.list:
             for server in self.user_config["servers"]:
