@@ -96,12 +96,6 @@ class QOSpeedTest:
             help="Number of bytes to send for the initial upload",
         )
         parser.add_argument(
-            "--initial-samples",
-            type=int,
-            default=3,
-            help="Number of ramp-up samples to not count against final calculations",
-        )
-        parser.add_argument(
             "--minimum-samples",
             type=int,
             default=10,
@@ -198,6 +192,7 @@ class QOSpeedTest:
         transfer_count = 0
         transfer_bytes_sum = 0
         bps_sample_list = []
+        rampup_mode = True
 
         while True:
             request_guid = guid()
@@ -260,9 +255,17 @@ class QOSpeedTest:
             )
 
             # Do not consider the first results
-            if transfer_count <= self.args.initial_samples:
-                projected_bytes = int(bps * self.args.target_seconds * 1.05 / 8.0)
-                continue
+            if rampup_mode:
+                if t_transfer < (
+                    datetime.timedelta(seconds=self.args.target_seconds) * 0.9
+                ):
+                    logging.debug(
+                        "Confidence not high on this sample, not counting toward EWMA"
+                    )
+                    projected_bytes = int(bps * self.args.target_seconds * 1.05 / 8.0)
+                    continue
+                else:
+                    rampup_mode = False
 
             ewma_bps.add(bps)
             ewma_time.add(t_transfer)
