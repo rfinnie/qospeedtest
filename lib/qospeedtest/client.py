@@ -29,6 +29,7 @@ def timed_request(method, *args, **kwargs):
 class QOSpeedTest:
     args = None
     user_config = None
+    is_tty = sys.stdin.isatty()
 
     def __init__(self):
         self.user_config = {}
@@ -254,6 +255,15 @@ class QOSpeedTest:
                 )
             )
 
+            if self.is_tty and not self.args.debug:
+                sys.stderr.write(
+                    "\r\x1b[K... {bps:0.02f} {bps.prefix}b/s ({count}) {spinner}".format(
+                        bps=si_number(bps if rampup_mode else ewma_bps.average),
+                        spinner=["/", "-", "\\", "|"][(transfer_count - 1) % 4],
+                        count=transfer_count,
+                    )
+                )
+
             # Do not consider the first results
             if rampup_mode:
                 if t_transfer < (
@@ -287,6 +297,8 @@ class QOSpeedTest:
                 ewma_bps.average * self.args.target_seconds * 1.05 / 8.0
             )
 
+        if self.is_tty and not self.args.debug:
+            sys.stderr.write("\r\x1b[K")
         if mode == "download":
             wording = ("Download", "received")
         else:
@@ -311,6 +323,7 @@ class QOSpeedTest:
                 max=si_number(max(bps_sample_list)),
             )
         )
+        logging.info("")
 
     def main(self):
         self.args = self.parse_args()
@@ -351,6 +364,7 @@ class QOSpeedTest:
                     self.user_config["default_server"]
                 )
             )
+            logging.info("")
         else:
             speedtest_net_servers = self.get_speedtest_net_servers()
             server = next(speedtest_net_servers)
@@ -360,6 +374,7 @@ class QOSpeedTest:
                     server.attrib["sponsor"], server.attrib["name"], server.attrib["cc"]
                 )
             )
+            logging.info("")
 
         if not url_base.endswith("/"):
             url_base += "/"
