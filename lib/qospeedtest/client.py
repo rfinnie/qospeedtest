@@ -8,6 +8,7 @@ import pathlib
 import statistics
 import sys
 import time
+import urllib.parse
 import xml.etree.ElementTree as ET
 
 import requests
@@ -18,17 +19,11 @@ from . import EWMA, SemiRandomGenerator
 from . import guid, si_number
 
 
-def timed_request(method, *args, **kwargs):
-    t_begin = datetime.datetime.now()
-    r = method(*args, **kwargs)
-    t_end = datetime.datetime.now()
-    r.raise_for_status()
-    return t_end - t_begin, r
-
-
 class QOSpeedTest:
     args = None
     user_config = None
+    http_session = None
+    session_guid = None
     is_tty = sys.stdin.isatty()
 
     def __init__(self):
@@ -170,19 +165,28 @@ class QOSpeedTest:
             if printed >= 10:
                 break
 
+    def st_request(self, *args, **kwargs):
+        kwargs["params"] = kwargs.get("params", {}).copy()
+        kwargs["params"]["guid"] = self.session_guid
+        kwargs["params"]["nocache"] = guid()
+        t_begin = datetime.datetime.now()
+        r = self.http_session.request(*args, **kwargs)
+        t_end = datetime.datetime.now()
+        r.raise_for_status()
+        return r
+
     def do_test(self, mode, url_base):
         if mode == "download":
             logging.info("Testing download speed from {}".format(url_base))
         else:
             logging.info("Testing upload speed to {}".format(url_base))
 
+        r = self.st_request("GET", url_base + "hello")
+        hello_response = r.text.strip()
+        logging.debug("Server: {}".format(hello_response))
+        assert hello_response.startswith("hello")
+
         target_td = datetime.timedelta(seconds=self.args.target_seconds)
-        session_guid = guid()
-        timed_request(
-            self.http_session.get,
-            url_base + "hello",
-            params={"nocache": guid(), "guid": session_guid},
-        )
         projected_bytes = (
             self.args.initial_download
             if mode == "download"
@@ -196,29 +200,24 @@ class QOSpeedTest:
         rampup_mode = True
 
         while True:
-            request_guid = guid()
             if mode == "download":
                 logging.debug(
                     "Requesting payload of {payload:0.02f} {payload.prefix}B from {url}download".format(
                         payload=si_number(projected_bytes, binary=True), url=url_base
                     )
                 )
-                t_request, r = timed_request(
-                    self.http_session.get,
+                with self.st_request(
+                    "GET",
                     url_base + "download",
-                    params={
-                        "size": projected_bytes,
-                        "nocache": request_guid,
-                        "guid": session_guid,
-                    },
+                    params={"size": projected_bytes},
                     stream=True,
-                )
-                t_start = datetime.datetime.now()
-                transfer_bytes = 0
-                for i in r.iter_content(None):
-                    transfer_bytes += len(i)
-                t_end = datetime.datetime.now()
-                t_transfer = t_end - t_start
+                ) as r:
+                    t_start = datetime.datetime.now()
+                    transfer_bytes = 0
+                    for i in r.iter_content(chunk_size=None):
+                        transfer_bytes += len(i)
+                    t_end = datetime.datetime.now()
+                    t_transfer = t_end - t_start
             else:
                 logging.debug(
                     "Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload".format(
@@ -226,28 +225,23 @@ class QOSpeedTest:
                     )
                 )
                 random_payload = b"".join(SemiRandomGenerator(projected_bytes))
-                t_request, r = timed_request(
-                    self.http_session.post,
-                    url_base + "upload",
-                    params={"nocache": request_guid, "guid": session_guid},
-                    data=random_payload,
-                    stream=True,
+                r = self.st_request(
+                    "POST", url_base + "upload", data=random_payload, stream=True
                 )
                 t_transfer = r.elapsed
-                upload_results = r.text.strip().split("=", 1)
-                assert upload_results[0] == "size"
-                reported_size = int(upload_results[1])
-                assert reported_size == projected_bytes
+                assert (
+                    int(urllib.parse.parse_qs(r.text.strip())["size"][0])
+                    == projected_bytes
+                )
                 transfer_bytes = projected_bytes
 
             bps = transfer_bytes / t_transfer.total_seconds() * 8.0
             transfer_bytes_sum += transfer_bytes
             transfer_count += 1
             logging.debug(
-                "Total request send: {send}, requests elapsed: {elapsed}, payload: "
+                "Request processing time: {elapsed}, payload: "
                 "{payload:0.02f} {payload.prefix}B in {transfer} "
                 "({bps:0.02f} {bps.prefix}b/s)".format(
-                    send=t_request,
                     elapsed=r.elapsed,
                     payload=si_number(transfer_bytes, binary=True),
                     transfer=t_transfer,
@@ -341,6 +335,7 @@ class QOSpeedTest:
         self.http_session.headers[
             "User-Agent"
         ] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
+        self.session_guid = guid()
 
         if self.args.list:
             for server in self.user_config["servers"]:
