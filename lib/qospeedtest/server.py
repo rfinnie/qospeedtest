@@ -54,7 +54,7 @@ class ServerApplication:
         content_length = int(self.environ["CONTENT_LENGTH"])
         left = content_length
         while left > 0:
-            to_read = left if left < 1024 else 1024
+            to_read = left if left < 1048576 else 1048576
             left -= to_read
             self.environ["wsgi.input"].read(to_read)
         return self.simple_response("size={}".format(content_length))
