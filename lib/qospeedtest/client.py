@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import logging
+import math
 import os
 import pathlib
 import statistics
@@ -254,8 +255,22 @@ class QOSpeedTest:
             )
 
             if self.is_tty and not self.args.debug:
+
+                def confidence_bar(fraction, length=20):
+                    fraction = 1 - abs((fraction / 1.0) - 1)
+                    fraction = 1 - (
+                        math.log(((1 - fraction) * 25) + 1) / math.log(25 + 1)
+                    )
+                    progress = int(fraction * length)
+                    return ("!" * progress) + ("." * (length - progress))
+
                 sys.stderr.write(
-                    "\r\x1b[K... {bps:0.02f} {bps.prefix}b/s ({count}) {spinner}".format(
+                    "\r\x1b[K{dots} {bps:0.02f} {bps.prefix}b/s ({count}) {spinner}".format(
+                        dots=(
+                            "?" * 20
+                            if rampup_mode
+                            else confidence_bar(ewma_time.average / self.args.target)
+                        ),
                         bps=si_number(bps if rampup_mode else ewma_bps.average),
                         spinner=["/", "-", "\\", "|"][(transfer_count - 1) % 4],
                         count=transfer_count,
