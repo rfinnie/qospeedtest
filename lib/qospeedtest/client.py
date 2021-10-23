@@ -169,9 +169,7 @@ class QOSpeedTest:
         kwargs["params"] = kwargs.get("params", {}).copy()
         kwargs["params"]["guid"] = self.session_guid
         kwargs["params"]["nocache"] = guid()
-        t_begin = datetime.datetime.now()
         r = self.http_session.request(*args, **kwargs)
-        t_end = datetime.datetime.now()
         r.raise_for_status()
         return r
 
