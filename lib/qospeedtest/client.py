@@ -221,6 +221,12 @@ class QOSpeedTest:
                         transfer_bytes += len(i)
                     t_end = datetime.datetime.now()
                     t_transfer = t_end - t_start
+                if projected_bytes != transfer_bytes:
+                    raise ValueError(
+                        "Requested {} bytes from server, got {}".format(
+                            projected_bytes, transfer_bytes
+                        )
+                    )
             else:
                 logging.debug(
                     "Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload".format(
