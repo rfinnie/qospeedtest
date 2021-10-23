@@ -83,13 +83,13 @@ class QOSpeedTest:
         parser.add_argument(
             "--initial-download",
             type=int,
-            default=102400,
+            default=(1024 * 1024),
             help="Number of bytes to request for the initial download",
         )
         parser.add_argument(
             "--initial-upload",
             type=int,
-            default=10240,
+            default=(1024 * 128),
             help="Number of bytes to send for the initial upload",
         )
         parser.add_argument(
