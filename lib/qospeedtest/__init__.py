@@ -23,30 +23,19 @@ class EWMA:
         return self._ewma_state / self._weight
 
 
-class SemiRandomGenerator(object):
-    # Randomized at module load time; we just need something semi-random
-    random_pool = os.urandom(1021)
+# Randomized at module load time; we just need something semi-random.
+# 1048573 is the first prime before 1024*1024; resists compression
+# in transit.
+RANDOM_POOL = os.urandom(1048573)
 
-    def __init__(self, byte_count):
-        self.byte_count = byte_count
-        self.left = self.byte_count
 
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        return self.next()
-
-    def next(self):
-        if self.left <= 0:
-            self.left = self.byte_count
-            raise StopIteration()
-        to_return = self.left if self.left < 1021 else 1021
-        self.left -= to_return
-        if to_return < 1021:
-            return self.random_pool[:to_return]
+def SemiRandomGenerator(byte_count):
+    while byte_count > 0:
+        if byte_count < 1048573:
+            yield RANDOM_POOL[:byte_count]
         else:
-            return self.random_pool
+            yield RANDOM_POOL
+        byte_count -= 1048573
 
 
 def guid():
