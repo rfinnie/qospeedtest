@@ -1,0 +1,6 @@
+include Makefile
+include *.md
+include qospeedtest
+include qospeedtest-server
+include requirements.txt
+include tox.ini
