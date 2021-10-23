@@ -183,7 +183,10 @@ class QOSpeedTest:
         r = self.st_request("GET", url_base + "hello")
         hello_response = r.text.strip()
         logging.debug("Server: {}".format(hello_response))
-        assert hello_response.startswith("hello")
+        if not hello_response.startswith("hello"):
+            raise ValueError(
+                "Expected hello response from server, got: {}".format(hello_response)
+            )
 
         projected_bytes = (
             self.args.initial_download
@@ -227,10 +230,13 @@ class QOSpeedTest:
                     "POST", url_base + "upload", data=random_payload, stream=True
                 )
                 t_transfer = r.elapsed
-                assert (
-                    int(urllib.parse.parse_qs(r.text.strip())["size"][0])
-                    == projected_bytes
-                )
+                response_size = int(urllib.parse.parse_qs(r.text.strip())["size"][0])
+                if response_size != projected_bytes:
+                    raise ValueError(
+                        "Expected confirmation of {} bytes from server, got {}".format(
+                            projected_bytes, response_size
+                        )
+                    )
                 transfer_bytes = projected_bytes
 
             bps = transfer_bytes / t_transfer.total_seconds() * 8.0
