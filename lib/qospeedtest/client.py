@@ -262,9 +262,7 @@ class QOSpeedTest:
                     logging.debug(
                         "Confidence not high on this sample, not counting toward EWMA"
                     )
-                    projected_bytes = int(
-                        bps * self.args.target.total_seconds() * 1.05 / 8.0
-                    )
+                    projected_bytes = int(bps * self.args.target.total_seconds() / 8.0)
                     continue
                 else:
                     rampup_mode = False
@@ -286,7 +284,7 @@ class QOSpeedTest:
                     break
 
             projected_bytes = int(
-                ewma_bps.average * self.args.target.total_seconds() * 1.05 / 8.0
+                ewma_bps.average * self.args.target.total_seconds() / 8.0
             )
 
         if self.is_tty and not self.args.debug:
