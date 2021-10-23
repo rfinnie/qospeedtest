@@ -305,16 +305,17 @@ class QOSpeedTest:
                 count=transfer_count,
             )
         )
-        stdev = statistics.stdev(bps_sample_list)
-        logging.info(
-            "Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single "
-            "request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s".format(
-                stdev=si_number(stdev),
-                stdev_ratio=(stdev / ewma_bps.average),
-                min=si_number(min(bps_sample_list)),
-                max=si_number(max(bps_sample_list)),
+        if len(bps_sample_list) > 1:
+            stdev = statistics.stdev(bps_sample_list)
+            logging.info(
+                "Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single "
+                "request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s".format(
+                    stdev=si_number(stdev),
+                    stdev_ratio=(stdev / ewma_bps.average),
+                    min=si_number(min(bps_sample_list)),
+                    max=si_number(max(bps_sample_list)),
+                )
             )
-        )
         logging.info("")
 
     def main(self):
