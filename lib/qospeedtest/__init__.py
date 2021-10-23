@@ -7,14 +7,17 @@ __version__ = "0.0.0"
 
 class EWMA:
     _weight = 8.0
-    _ewma_state = 0
+    _ewma_state = 0.0
+    _initial = True
 
-    def __init__(self, weight=8.0):
+    def __init__(self, weight=8.0, state=0.0):
         self._weight = weight
+        self._ewma_state = state
 
     def add(self, number):
-        if self._ewma_state == 0:
+        if self._initial:
             self._ewma_state = number * self._weight
+            self._initial = False
         else:
             self._ewma_state += number - (self._ewma_state / self._weight)
 

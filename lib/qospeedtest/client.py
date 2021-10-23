@@ -193,7 +193,7 @@ class QOSpeedTest:
             else self.args.initial_upload
         )
         ewma_bps = EWMA(self.args.ewma_weight)
-        ewma_time = EWMA(self.args.ewma_weight)
+        ewma_time = EWMA(self.args.ewma_weight, state=datetime.timedelta())
         transfer_count = 0
         transfer_bytes_sum = 0
         bps_sample_list = []
