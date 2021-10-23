@@ -228,6 +228,9 @@ class QOSpeedTest:
                     )
                 )
                 random_payload = b"".join(SemiRandomGenerator(projected_bytes))
+                # requests supports data= being a generator, but then uses
+                # Chunked transfer encoding, which the servers do not support,
+                # so we must sent the data to requests in one go.
                 r = self.st_request(
                     "POST", url_base + "upload", data=random_payload, stream=True
                 )
