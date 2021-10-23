@@ -71,8 +71,9 @@ class QOSpeedTest:
         )
         parser.add_argument(
             "--target-seconds",
-            type=float,
-            default=1.0,
+            type=lambda x: datetime.timedelta(seconds=float(x)),
+            default=datetime.timedelta(seconds=1.0),
+            dest="target",
             help="Length of each request to try for",
         )
         parser.add_argument(
@@ -184,7 +185,6 @@ class QOSpeedTest:
         logging.debug("Server: {}".format(hello_response))
         assert hello_response.startswith("hello")
 
-        target_td = datetime.timedelta(seconds=self.args.target_seconds)
         projected_bytes = (
             self.args.initial_download
             if mode == "download"
@@ -258,13 +258,13 @@ class QOSpeedTest:
 
             # Do not consider the first results
             if rampup_mode:
-                if t_transfer < (
-                    datetime.timedelta(seconds=self.args.target_seconds) * 0.9
-                ):
+                if t_transfer < (self.args.target * 0.9):
                     logging.debug(
                         "Confidence not high on this sample, not counting toward EWMA"
                     )
-                    projected_bytes = int(bps * self.args.target_seconds * 1.05 / 8.0)
+                    projected_bytes = int(
+                        bps * self.args.target.total_seconds() * 1.05 / 8.0
+                    )
                     continue
                 else:
                     rampup_mode = False
@@ -282,11 +282,11 @@ class QOSpeedTest:
                 logging.debug("Reached maximum samples")
                 break
             elif len(bps_sample_list) >= self.args.minimum_samples:
-                if ewma_time.average >= (target_td * 0.95):
+                if ewma_time.average >= (self.args.target * 0.95):
                     break
 
             projected_bytes = int(
-                ewma_bps.average * self.args.target_seconds * 1.05 / 8.0
+                ewma_bps.average * self.args.target.total_seconds() * 1.05 / 8.0
             )
 
         if self.is_tty and not self.args.debug:
