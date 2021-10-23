@@ -200,6 +200,7 @@ class QOSpeedTest:
         transfer_bytes_sum = 0
         bps_sample_list = []
         rampup_mode = True
+        test_start = datetime.datetime.now()
 
         while True:
             if mode == "download":
@@ -265,14 +266,14 @@ class QOSpeedTest:
                     return ("!" * progress) + ("." * (length - progress))
 
                 sys.stderr.write(
-                    "\r\x1b[K{dots} {bps:0.02f} {bps.prefix}b/s ({count}) {spinner}".format(
+                    "\r\x1b[K{dots} {spinner} {bps:0.02f} {bps.prefix}b/s ({count})".format(
                         dots=(
                             "?" * 20
                             if rampup_mode
                             else confidence_bar(ewma_time.average / self.args.target)
                         ),
-                        bps=si_number(bps if rampup_mode else ewma_bps.average),
                         spinner=["/", "-", "\\", "|"][(transfer_count - 1) % 4],
+                        bps=si_number(bps if rampup_mode else ewma_bps.average),
                         count=transfer_count,
                     )
                 )
@@ -308,6 +309,8 @@ class QOSpeedTest:
                 ewma_bps.average * self.args.target.total_seconds() / 8.0
             )
 
+        test_end = datetime.datetime.now()
+
         if self.is_tty and not self.args.debug:
             sys.stderr.write("\r\x1b[K")
         if mode == "download":
@@ -316,19 +319,19 @@ class QOSpeedTest:
             wording = ("Upload", "sent")
         logging.info(
             "{type} speed: {bps:0.02f} {bps.prefix}b/s, {transfer:0.02f} {transfer.prefix}B {verb} in "
-            "{count} requests".format(
+            "{time}".format(
                 type=wording[0],
                 bps=si_number(ewma_bps.average),
                 transfer=si_number(transfer_bytes_sum, binary=True),
                 verb=wording[1],
-                count=transfer_count,
+                time=(test_end - test_start),
             )
         )
         if len(bps_sample_list) > 1:
             stdev = statistics.stdev(bps_sample_list)
             logging.info(
-                "Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), lowest/highest single "
-                "request: {min:0.02f} {min.prefix}b/s, {max:0.02f} {max.prefix}b/s".format(
+                "Standard deviation: {stdev:0.02f} {stdev.prefix}b/s ({stdev_ratio:.1%}), "
+                "lowest {min:0.02f} {min.prefix}b/s, highest {max:0.02f} {max.prefix}b/s".format(
                     stdev=si_number(stdev),
                     stdev_ratio=(stdev / ewma_bps.average),
                     min=si_number(min(bps_sample_list)),
