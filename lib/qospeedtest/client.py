@@ -280,9 +280,15 @@ class QOSpeedTest:
 
             # Do not consider the first results
             if rampup_mode:
-                if t_transfer < (self.args.target * 0.9):
+                thresh_low = self.args.target * 0.9
+                thresh_high = self.args.target * 1.5
+                if not (thresh_high > t_transfer > thresh_low):
                     logging.debug(
-                        "Confidence not high on this sample, not counting toward EWMA"
+                        "Confidence not yet high on early sample "
+                        "({} not within {} and {} targeting {}), "
+                        "not counting toward EWMA".format(
+                            t_transfer, thresh_low, thresh_high, self.args.target
+                        )
                     )
                     projected_bytes = int(bps * self.args.target.total_seconds() / 8.0)
                     continue
@@ -302,7 +308,11 @@ class QOSpeedTest:
                 logging.debug("Reached maximum samples")
                 break
             elif len(bps_sample_list) >= self.args.minimum_samples:
-                if ewma_time.average >= (self.args.target * 0.95):
+                if (
+                    (self.args.target * 1.25)
+                    > ewma_time.average
+                    > (self.args.target * 0.95)
+                ):
                     break
 
             projected_bytes = int(
