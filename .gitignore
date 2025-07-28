@@ -1,3 +1,7 @@
+# SPDX-PackageSummary: qospeedtest
+# SPDX-FileCopyrightText: Copyright (C) 2019-2025 Ryan Finnie
+# SPDX-License-Identifier: MPL-2.0
+
 MANIFEST
 
 # Byte-compiled / optimized / DLL files

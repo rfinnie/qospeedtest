@@ -1,0 +1,38 @@
+# SPDX-PackageSummary: qospeedtest
+# SPDX-FileCopyrightText: Copyright (C) 2019-2025 Ryan Finnie
+# SPDX-License-Identifier: MPL-2.0
+
+[project]
+name = "qospeedtest"
+authors = [
+    {name = "Ryan Finnie", email = "ryan@finnie.org"},
+]
+description = "Quick-and-Dirty OoklaServer Speed Test"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MPL-2.0"}
+dependencies = [
+    "requests",
+    "PyYAML",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+gunicorn = ["gunicorn"]
+
+[tool.setuptools]
+package-dir = {"" = "lib"}
+
+[tool.setuptools.packages.find]
+where = ["lib"]
+
+[project.scripts]
+qospeedtest = "qospeedtest.client:main"
+qospeedtest-server = "qospeedtest.server:main"
+
+[tool.black]
+line-length = 132
+
+# https://pypi.org/project/Flake8-pyproject/
+[tool.flake8]
+max-line-length = 132

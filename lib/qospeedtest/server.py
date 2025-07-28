@@ -111,13 +111,7 @@ def standalone_gunicorn():
             super(StandaloneApplication, self).__init__()
 
         def load_config(self):
-            config = dict(
-                [
-                    (key, value)
-                    for key, value in self.options.items()
-                    if key in self.cfg.settings and value is not None
-                ]
-            )
+            config = dict([(key, value) for key, value in self.options.items() if key in self.cfg.settings and value is not None])
             for key, value in config.items():
                 self.cfg.set(key.lower(), value)
 
@@ -131,9 +125,7 @@ def standalone_gunicorn():
 
 
 def standalone_wsgiref():
-    logging.warning(
-        "wsgiref.simple_server is unsuitable for production, as it supports neither HTTP 1.1 nor 100 Continue."
-    )
+    logging.warning("wsgiref.simple_server is unsuitable for production, as it supports neither HTTP 1.1 nor 100 Continue.")
     from wsgiref.simple_server import make_server
 
     application = ServerApplication()
@@ -142,9 +134,7 @@ def standalone_wsgiref():
 
 
 def main():
-    logging.basicConfig(
-        format="%(asctime)s: %(name)s/%(levelname)s: %(message)s", level=logging.INFO
-    )
+    logging.basicConfig(format="%(asctime)s: %(name)s/%(levelname)s: %(message)s", level=logging.INFO)
     try:
         standalone_gunicorn()
     except ImportError:

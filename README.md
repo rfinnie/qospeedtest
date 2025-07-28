@@ -40,3 +40,17 @@ $ gunicorn3 -b 0.0.0.0:8080 -w 4 -k gthread qospeedtest.wsgi:application
 `-k gthread` is needed for Keep-alive and 100 Continue support, both needed for accurate client measurement.
 
 `qospeedtest-server` may be run directly, and if Gunicorn is installed, it will use that with a default minimal configuration.  Otherwise it will use wsgiref, which is suitable only for basic testing and definitely not production use, as it doesn't have Keep-alive or 100 Continue support (or even HTTP 1.1 support).
+
+## License
+
+Copyright (C) 2019-2025 [Ryan Finnie](https://www.finnie.org/)
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+This document is provided under the following license:
+
+    SPDX-PackageSummary: finnix-live-build
+    SPDX-FileCopyrightText: Copyright (C) 2025 Ryan Finnie
+    SPDX-License-Identifier: CC-BY-SA-4.0

@@ -53,19 +53,11 @@ class QOSpeedTest:
         )
 
         action_group = parser.add_mutually_exclusive_group(required=False)
-        action_group.add_argument(
-            "server", type=str, nargs="?", help="Speed test server profile or URL"
-        )
-        action_group.add_argument(
-            "--list", action="store_true", help="List saved servers."
-        )
-        action_group.add_argument(
-            "--nearby", action="store_true", help="List nearby speedtest.net servers"
-        )
+        action_group.add_argument("server", type=str, nargs="?", help="Speed test server profile or URL")
+        action_group.add_argument("--list", action="store_true", help="List saved servers.")
+        action_group.add_argument("--nearby", action="store_true", help="List nearby speedtest.net servers")
 
-        parser.add_argument(
-            "--debug", action="store_true", help="Print extra debugging information."
-        )
+        parser.add_argument("--debug", action="store_true", help="Print extra debugging information.")
         parser.add_argument(
             "--ewma-weight",
             type=float,
@@ -79,9 +71,7 @@ class QOSpeedTest:
             dest="target",
             help="Length of each request to try for",
         )
-        parser.add_argument(
-            "--no-download", action="store_true", help="Skip download test"
-        )
+        parser.add_argument("--no-download", action="store_true", help="Skip download test")
         parser.add_argument("--no-upload", action="store_true", help="Skip upload test")
         parser.add_argument(
             "--initial-download",
@@ -112,11 +102,7 @@ class QOSpeedTest:
         return args
 
     def load_user_config(self):
-        yaml_file = pathlib.Path(
-            os.path.join(
-                os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"
-            )
-        )
+        yaml_file = pathlib.Path(os.path.join(os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"))
         if yaml_file.exists():
             with yaml_file.open() as f:
                 self.user_config = yaml.safe_load(f)
@@ -124,9 +110,7 @@ class QOSpeedTest:
         if "servers" not in self.user_config:
             self.user_config["servers"] = {}
 
-        if ("default_server" not in self.user_config) or (
-            self.user_config["default_server"] not in self.user_config["servers"]
-        ):
+        if ("default_server" not in self.user_config) or (self.user_config["default_server"] not in self.user_config["servers"]):
             self.user_config["default_server"] = None
 
     def get_speedtest_net_servers(self):
@@ -138,15 +122,11 @@ class QOSpeedTest:
                 "speedtest-servers-static.xml",
             )
         )
-        if xml_cache_file.exists() and (
-            xml_cache_file.stat().st_mtime >= (time.time() - (60 * 60 * 24))
-        ):
+        if xml_cache_file.exists() and (xml_cache_file.stat().st_mtime >= (time.time() - (60 * 60 * 24))):
             logging.debug("Using cached speedtest-servers-static.xml")
             root = ET.fromstring(xml_cache_file.read_text())
         else:
-            res = self.http_session.get(
-                "https://www.speedtest.net/speedtest-servers-static.php"
-            )
+            res = self.http_session.get("https://www.speedtest.net/speedtest-servers-static.php")
             res.raise_for_status()
             root = ET.fromstring(res.text)
             xml_cache_file.parent.mkdir(parents=True, exist_ok=True)
@@ -187,15 +167,9 @@ class QOSpeedTest:
         hello_response = r.text.strip()
         logging.debug("Server: {}".format(hello_response))
         if not hello_response.startswith("hello"):
-            raise ValueError(
-                "Expected hello response from server, got: {}".format(hello_response)
-            )
+            raise ValueError("Expected hello response from server, got: {}".format(hello_response))
 
-        projected_bytes = (
-            self.args.initial_download
-            if mode == "download"
-            else self.args.initial_upload
-        )
+        projected_bytes = self.args.initial_download if mode == "download" else self.args.initial_upload
         ewma_bps = EWMA(self.args.ewma_weight)
         ewma_time = EWMA(self.args.ewma_weight, state=datetime.timedelta())
         transfer_count = 0
@@ -224,11 +198,7 @@ class QOSpeedTest:
                     t_end = datetime.datetime.now()
                     t_transfer = t_end - t_start
                 if projected_bytes != transfer_bytes:
-                    raise ValueError(
-                        "Requested {} bytes from server, got {}".format(
-                            projected_bytes, transfer_bytes
-                        )
-                    )
+                    raise ValueError("Requested {} bytes from server, got {}".format(projected_bytes, transfer_bytes))
             else:
                 logging.debug(
                     "Sending payload of {payload:0.02f} {payload.prefix}B to {url}upload".format(
@@ -239,17 +209,11 @@ class QOSpeedTest:
                 # requests supports data= being a generator, but then uses
                 # Chunked transfer encoding, which the servers do not support,
                 # so we must sent the data to requests in one go.
-                r = self.st_request(
-                    "POST", url_base + "upload", data=random_payload, stream=True
-                )
+                r = self.st_request("POST", url_base + "upload", data=random_payload, stream=True)
                 t_transfer = r.elapsed
                 response_size = int(urllib.parse.parse_qs(r.text.strip())["size"][0])
                 if response_size != projected_bytes:
-                    raise ValueError(
-                        "Expected confirmation of {} bytes from server, got {}".format(
-                            projected_bytes, response_size
-                        )
-                    )
+                    raise ValueError("Expected confirmation of {} bytes from server, got {}".format(projected_bytes, response_size))
                 transfer_bytes = projected_bytes
 
             bps = transfer_bytes / t_transfer.total_seconds() * 8.0
@@ -270,19 +234,13 @@ class QOSpeedTest:
 
                 def confidence_bar(fraction, length=20):
                     fraction = 1 - abs((fraction / 1.0) - 1)
-                    fraction = 1 - (
-                        math.log(((1 - fraction) * 25) + 1) / math.log(25 + 1)
-                    )
+                    fraction = 1 - (math.log(((1 - fraction) * 25) + 1) / math.log(25 + 1))
                     progress = int(fraction * length)
                     return ("!" * progress) + ("." * (length - progress))
 
                 sys.stderr.write(
                     "\r\x1b[K{dots} {spinner} {bps:0.02f} {bps.prefix}b/s ({count})".format(
-                        dots=(
-                            "?" * 20
-                            if rampup_mode
-                            else confidence_bar(ewma_time.average / self.args.target)
-                        ),
+                        dots=("?" * 20 if rampup_mode else confidence_bar(ewma_time.average / self.args.target)),
                         spinner=["/", "-", "\\", "|"][(transfer_count - 1) % 4],
                         bps=si_number(bps if rampup_mode else ewma_bps.average),
                         count=transfer_count,
@@ -297,9 +255,7 @@ class QOSpeedTest:
                     logging.debug(
                         "Confidence not yet high on early sample "
                         "({} not within {} and {} targeting {}), "
-                        "not counting toward EWMA".format(
-                            t_transfer, thresh_low, thresh_high, self.args.target
-                        )
+                        "not counting toward EWMA".format(t_transfer, thresh_low, thresh_high, self.args.target)
                     )
                     projected_bytes = int(bps * self.args.target.total_seconds() / 8.0)
                     continue
@@ -319,16 +275,10 @@ class QOSpeedTest:
                 logging.debug("Reached maximum samples")
                 break
             elif len(bps_sample_list) >= self.args.minimum_samples:
-                if (
-                    (self.args.target * 1.25)
-                    > ewma_time.average
-                    > (self.args.target * 0.95)
-                ):
+                if (self.args.target * 1.25) > ewma_time.average > (self.args.target * 0.95):
                     break
 
-            projected_bytes = int(
-                ewma_bps.average * self.args.target.total_seconds() / 8.0
-            )
+            projected_bytes = int(ewma_bps.average * self.args.target.total_seconds() / 8.0)
 
         test_end = datetime.datetime.now()
 
@@ -374,16 +324,12 @@ class QOSpeedTest:
 
         self.load_user_config()
         self.http_session = requests.Session()
-        self.http_session.headers[
-            "User-Agent"
-        ] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
+        self.http_session.headers["User-Agent"] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
         self.session_guid = guid()
 
         if self.args.list:
             for server in self.user_config["servers"]:
-                logging.info(
-                    "{}\t{}".format(server, self.user_config["servers"][server]["url"])
-                )
+                logging.info("{}\t{}".format(server, self.user_config["servers"][server]["url"]))
             return
         elif self.args.nearby:
             return self.print_nearby_remote()
@@ -393,14 +339,8 @@ class QOSpeedTest:
             else:
                 url_base = self.args.server
         elif self.user_config["default_server"]:
-            url_base = self.user_config["servers"][self.user_config["default_server"]][
-                "url"
-            ]
-            logging.info(
-                "Using default server '{}' from user configuration".format(
-                    self.user_config["default_server"]
-                )
-            )
+            url_base = self.user_config["servers"][self.user_config["default_server"]]["url"]
+            logging.info("Using default server '{}' from user configuration".format(self.user_config["default_server"]))
             logging.info("")
         else:
             speedtest_net_servers = self.get_speedtest_net_servers()

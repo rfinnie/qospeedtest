@@ -4,9 +4,20 @@
 # SPDX-FileCopyrightText: Copyright (C) 2019-2021 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
 
-import sys
+import importlib.util
 import os
+import sys
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lib'))
-import qospeedtest.client
-sys.exit(qospeedtest.client.main())
+
+def import_from_path(module_name, file_path):
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+lib_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib", "qospeedtest")
+import_from_path("qospeedtest", os.path.join(lib_dir, "__init__.py"))
+qospeedtest_client = import_from_path("qospeedtest.client", os.path.join(lib_dir, "client.py"))
+sys.exit(qospeedtest_client.main())

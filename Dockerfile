@@ -1,12 +1,12 @@
-FROM python:3.10
+# SPDX-PackageSummary: qospeedtest
+# SPDX-FileCopyrightText: Copyright (C) 2019-2025 Ryan Finnie
+# SPDX-License-Identifier: MPL-2.0
 
-WORKDIR /usr/src/app
+FROM python:3.12
 
-COPY . .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir gunicorn .
+COPY . /tmp/build
+RUN pip install --no-cache-dir '/tmp/build[gunicorn]' && rm -rf /tmp/build
 
 USER nobody
-ENV PYTHONPATH=/usr/local/lib/python
 CMD [ "gunicorn", "-b", "0.0.0.0:8000", "-k", "gthread", "--error-logfile", "-", "--capture-output", "qospeedtest.wsgi:application" ]
 EXPOSE 8000/tcp
