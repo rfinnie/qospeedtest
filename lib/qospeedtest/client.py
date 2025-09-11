@@ -136,8 +136,7 @@ class QOSpeedTest:
         return root.iter("server")
 
     def print_nearby_remote(self):
-        printed = 0
-        for server in self.get_speedtest_net_servers():
+        for i, server in enumerate(self.get_speedtest_net_servers()):
             logging.info(
                 "http://{}/\t{}, {}\t{}".format(
                     server.attrib["host"],
@@ -146,9 +145,8 @@ class QOSpeedTest:
                     server.attrib["sponsor"],
                 )
             )
-            printed += 1
-            if printed >= 10:
-                break
+            if i >= 9:
+                return
 
     def st_request(self, *args, **kwargs):
         kwargs["params"] = kwargs.get("params", {}).copy()
