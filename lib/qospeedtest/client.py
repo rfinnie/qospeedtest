@@ -102,7 +102,8 @@ class QOSpeedTest:
         return args
 
     def load_user_config(self):
-        yaml_file = pathlib.Path(os.path.join(os.path.expanduser("~"), ".config", "qospeedtest", "config.yaml"))
+        base_config_dir = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser("~"), ".config"))
+        yaml_file = pathlib.Path(os.path.join(base_config_dir, "qospeedtest", "config.yaml"))
         if yaml_file.exists():
             with yaml_file.open() as f:
                 self.user_config = yaml.safe_load(f)
@@ -114,10 +115,10 @@ class QOSpeedTest:
             self.user_config["default_server"] = None
 
     def get_speedtest_net_servers(self):
+        base_cache_dir = os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache"))
         xml_cache_file = pathlib.Path(
             os.path.join(
-                os.path.expanduser("~"),
-                ".cache",
+                base_cache_dir,
                 "qospeedtest",
                 "speedtest-servers-static.xml",
             )
