@@ -126,14 +126,23 @@ class QOSpeedTest:
         if xml_cache_file.exists() and (xml_cache_file.stat().st_mtime >= (time.time() - (60 * 60 * 24))):
             logging.debug("Using cached speedtest-servers-static.xml")
             root = ET.fromstring(xml_cache_file.read_text())
-        else:
-            res = self.http_session.get("https://www.speedtest.net/speedtest-servers-static.php")
+            return root.iter("server")
+
+        res = self.http_session.get("https://www.speedtest.net/speedtest-servers-static.php")
+        try:
             res.raise_for_status()
+        except requests.exceptions.HTTPError:
+            if xml_cache_file.exists():
+                logging.exception("Warning: Received error from speedtest.net servers list, using outdated cache instead")
+                root = ET.fromstring(xml_cache_file.read_text())
+                return root.iter("server")
+            else:
+                raise
+        else:
             root = ET.fromstring(res.text)
             xml_cache_file.parent.mkdir(parents=True, exist_ok=True)
             xml_cache_file.write_text(res.text)
-
-        return root.iter("server")
+            return root.iter("server")
 
     def print_nearby_remote(self):
         for i, server in enumerate(self.get_speedtest_net_servers()):
