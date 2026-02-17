@@ -1,5 +1,7 @@
-# SPDX-PackageSummary: Quick-and-Dirty OoklaServer-compatible Speed Test
-# SPDX-FileCopyrightText: Copyright (C) 2019-2021 Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageName: qospeedtest
+# SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+# SPDX-PackageDownloadLocation: https://github.com/rfinnie/qospeedtest
+# SPDX-FileCopyrightText: © 2019 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
 
 import logging

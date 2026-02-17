@@ -51,6 +51,8 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 This document is provided under the following license:
 
-    SPDX-PackageSummary: finnix-live-build
-    SPDX-FileCopyrightText: Copyright (C) 2025 Ryan Finnie
+    SPDX-PackageName: qospeedtest
+    SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
+    SPDX-PackageDownloadLocation: https://github.com/rfinnie/qospeedtest
+    SPDX-FileCopyrightText: © 2025 Ryan Finnie <ryan@finnie.org>
     SPDX-License-Identifier: CC-BY-SA-4.0
