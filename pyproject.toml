@@ -12,7 +12,7 @@ authors = [
 description = "Quick-and-Dirty OoklaServer Speed Test"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MPL-2.0"}
+license = "MPL-2.0"
 dependencies = [
     "requests",
     "PyYAML",
