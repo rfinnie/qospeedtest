@@ -1,6 +1,6 @@
 # SPDX-PackageName: qospeedtest
 # SPDX-PackageSupplier: Ryan Finnie <ryan@finnie.org>
-# SPDX-PackageDownloadLocation: https://github.com/rfinnie/qospeedtest
+# SPDX-PackageDownloadLocation: https://codeberg.org/rfinnie/qospeedtest
 # SPDX-FileCopyrightText: © 2019 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
 
@@ -334,7 +334,7 @@ class QOSpeedTest:
 
         self.load_user_config()
         self.http_session = requests.Session()
-        self.http_session.headers["User-Agent"] = "qospeedtest (https://github.com/rfinnie/qospeedtest)"
+        self.http_session.headers["User-Agent"] = "qospeedtest (https://codeberg.org/rfinnie/qospeedtest)"
         self.session_guid = guid()
 
         if self.args.list:
