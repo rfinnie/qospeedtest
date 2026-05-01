@@ -11,7 +11,7 @@ authors = [
 ]
 description = "Quick-and-Dirty OoklaServer Speed Test"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = "MPL-2.0"
 dependencies = [
     "requests",
@@ -21,6 +21,10 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 gunicorn = ["gunicorn"]
+
+[build-system]
+requires = ["setuptools>=59.6.0"]
+build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = {"" = "lib"}
