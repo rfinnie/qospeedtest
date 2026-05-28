@@ -1,5 +1,8 @@
 # qospeedtest - Quick-and-Dirty OoklaServer Speed Test
 
+[![Git forge repository](https://img.shields.io/badge/git-forge-orange?logo=forgejo)](https://forge.colobox.com/rfinnie/qospeedtest)
+[![CI pipeline status](https://woodpecker.colobox.com/api/badges/51/status.svg)](https://woodpecker.colobox.com/repos/51)
+
 qospeedtest is a CLI to test against [OoklaServer](https://support.ookla.com/hc/en-us/articles/234578528-OoklaServer-Installation-Linux-Unix), the backends used by [speedtest.net](https://speedtest.net/) for speed tests (though not to be confused with the legacy backend server format previously used by speedtest.net).  OoklaServer servers will typically have a base URL in the format "http://example.com:8080/", with https also being in use, as well as port 5060.
 
 qospeedtest emulates the communication order done by speedtest.net, but uses a different calculation algorithm.  qospeedtest begins with a small arbitrary size (1 MiB for download, 128 KiB for upload), calculates the speed, and uses this to prepare for the next round, targeting (by default) 1 second downloads/uploads per sample.  The speed and sample times are fed into [EWMAs](https://en.wikipedia.org/wiki/Moving_average#Exponential_moving_average) with weights of 8, and the process continues until the sample time EWMA is between 95% and 125% of the target time.  This should give a reasonably confident average of individual samples.
