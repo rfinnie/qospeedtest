@@ -4,7 +4,7 @@
 # SPDX-FileCopyrightText: © 2019 Ryan Finnie <ryan@finnie.org>
 # SPDX-License-Identifier: MPL-2.0
 
-FROM python:3.12
+FROM python:3.14-slim
 
 COPY . /tmp/build
 RUN pip install --no-cache-dir '/tmp/build[gunicorn]' && useradd -ms /bin/bash qospeedtest && rm -rf /tmp/build
